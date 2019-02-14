@@ -6,6 +6,7 @@ import android.util.Log;
 
 import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.Promise;
+import com.facebook.react.bridge.Callback;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
@@ -36,23 +37,23 @@ public class RNAsyncStorageModule extends ReactContextBaseJavaModule {
      * @param value
      */
     @ReactMethod
-    public void setItem(String key, String value, Promise promise) {
+    public void setItem(String key, String value, final Callback callback) {
         try {
             SharedPreferences sharedPref = getCurrentActivity().getPreferences(Context.MODE_PRIVATE);
             SharedPreferences.Editor editor = sharedPref.edit();
             editor.putString(key, value);
             editor.commit();
-            promise.resolve(null);
+            callback.invoke();
         } catch (Exception e) {
-            promise.reject(e);
+            callback.invoke(RNAsyncStorageErrorUtil.getError(null, e.getMessage()), null);
             e.printStackTrace();
         }
     }
 
     @ReactMethod
-    public void multiSet(ReadableArray keyValueArray, Promise promise) {
+    public void multiSet(ReadableArray keyValueArray, final Callback callback) {
         if (keyValueArray == null) {
-            promise.reject(new Throwable("Argument of type 'null' is not assignable to parameter of type 'string[][]'."));
+            callback.invoke(RNAsyncStorageErrorUtil.getInvalidKeyError(null));
         }
 
         try {
@@ -60,16 +61,15 @@ public class RNAsyncStorageModule extends ReactContextBaseJavaModule {
             SharedPreferences.Editor editor = sharedPref.edit();
             for (int i = 0; i < keyValueArray.size(); i++) {
                 if (keyValueArray.getArray(i).size() != 2) {
-                    promise.reject(new Throwable("Siz of array don't equal 2 " + keyValueArray.getArray(i)));
-
+                    callback.invoke(RNAsyncStorageErrorUtil.getInvalidValueError(null));
                     return;
                 }
                 if (keyValueArray.getArray(i).getString(0) == null) {
-                    promise.reject(new Throwable("Null Pointer  " + keyValueArray.getArray(i)));
+                    callback.invoke(RNAsyncStorageErrorUtil.getInvalidKeyError(null));
                     return;
                 }
                 if (keyValueArray.getArray(i).getString(1) == null) {
-                    promise.reject(new Throwable("Null Pointer  " + keyValueArray.getArray(i)));
+                    callback.invoke(RNAsyncStorageErrorUtil.getInvalidValueError(null));
                     return;
                 }
 
@@ -77,9 +77,9 @@ public class RNAsyncStorageModule extends ReactContextBaseJavaModule {
 
             }
             editor.commit();
-            promise.resolve(null);
+            callback.invoke();
         } catch (Exception e) {
-            promise.reject(e);
+            callback.invoke(RNAsyncStorageErrorUtil.getError(null, e.getMessage()), null);
             e.printStackTrace();
         }
     }
@@ -90,16 +90,16 @@ public class RNAsyncStorageModule extends ReactContextBaseJavaModule {
      * @param key
      */
     @ReactMethod
-    public void removeItem(String key, Promise promise) {
+    public void removeItem(String key, final Callback callback) {
 
         try {
             SharedPreferences sharedPref = getCurrentActivity().getPreferences(Context.MODE_PRIVATE);
             SharedPreferences.Editor editor = sharedPref.edit();
             editor.remove(key);
             editor.commit();
-            promise.resolve(null);
+            callback.invoke();
         } catch (Exception e) {
-            promise.reject(e);
+            callback.invoke(RNAsyncStorageErrorUtil.getError(null, e.getMessage()), null);
             e.printStackTrace();
         }
     }
@@ -111,21 +111,21 @@ public class RNAsyncStorageModule extends ReactContextBaseJavaModule {
      * @return string value or null
      */
     @ReactMethod
-    public void getItem(String key, Promise promise) {
+    public void getItem(String key, final Callback callback) {
         try {
             SharedPreferences sharedPref = getCurrentActivity().getPreferences(Context.MODE_PRIVATE);
             String value = sharedPref.getString(key, null);
-            promise.resolve(value);
+            callback.invoke(null, value);
         } catch (Exception e) {
-            promise.reject(e);
+            callback.invoke(RNAsyncStorageErrorUtil.getError(null, e.getMessage()), null);
             e.printStackTrace();
         }
     }
 
     @ReactMethod
-    public void multiGet(ReadableArray keys, Promise promise) {
+    public void multiGet(final ReadableArray keys, final Callback callback) {
         if (keys == null) {
-            promise.reject(new Throwable("Argument of type 'null' is not assignable to parameter of type 'string[]'."));
+            callback.invoke(RNAsyncStorageErrorUtil.getInvalidKeyError(null), null);
         }
         try {
             SharedPreferences sharedPref = getCurrentActivity().getPreferences(Context.MODE_PRIVATE);
@@ -136,9 +136,9 @@ public class RNAsyncStorageModule extends ReactContextBaseJavaModule {
                 row.pushString(sharedPref.getString(keys.getString(i), null));
                 data.pushArray(row);
             }
-            promise.resolve(data);
+            callback.invoke(null, data);
         } catch (Exception e) {
-            promise.reject(e);
+            callback.invoke(RNAsyncStorageErrorUtil.getError(null, e.getMessage()), null);
             e.printStackTrace();
         }
     }
@@ -147,26 +147,22 @@ public class RNAsyncStorageModule extends ReactContextBaseJavaModule {
      * Clear storage
      */
     @ReactMethod
-    public void clear(Promise promise) {
+    public void clear(final Callback callback) {
         try {
             SharedPreferences sharedPref = getCurrentActivity().getPreferences(Context.MODE_PRIVATE);
             SharedPreferences.Editor editor = sharedPref.edit();
             editor.clear();
             editor.commit();
-            promise.resolve(null);
+            callback.invoke();
         } catch (Exception e) {
-            promise.reject(e);
+            callback.invoke(RNAsyncStorageErrorUtil.getError(null, e.getMessage()), null);
             e.printStackTrace();
         }
     }
 
-    /**
-     * Get all keys
-     *
-     * @param promise
-     */
+
     @ReactMethod
-    public void getAllKeys(Promise promise) {
+    public void getAllKeys(final Callback callback) {
         try {
             SharedPreferences sharedPref = getCurrentActivity().getPreferences(Context.MODE_PRIVATE);
             Map<String, ?> map = sharedPref.getAll();
@@ -181,10 +177,11 @@ public class RNAsyncStorageModule extends ReactContextBaseJavaModule {
             for (int i = 0; i < returnArray.length; i++) {
                 promiseArray.pushString(returnArray[i]);
             }
-            promise.resolve(promiseArray);
+            callback.invoke(null, promiseArray);
+
 
         } catch (Exception e) {
-            promise.reject(e);
+            callback.invoke(RNAsyncStorageErrorUtil.getError(null, e.getMessage()), null);
             e.printStackTrace();
 
         }
